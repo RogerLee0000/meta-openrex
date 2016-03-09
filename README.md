@@ -33,7 +33,7 @@ Copy and paste this into your Linux host machine
       <remote fetch="git://github.com/FEDEVEL" name="fedevel"/>
     
       <project remote="fedevel" revision="jethro" name="meta-openrex" path="sources/meta-openrex">
-        <copyfile src="fedevel-setup.sh" dest="fedevel-setup.sh"/>
+        <copyfile src="openrex-setup.sh" dest="openrex-setup.sh"/>
       </project>
     </manifest>
     EOF
