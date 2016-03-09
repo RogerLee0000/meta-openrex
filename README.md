@@ -69,6 +69,22 @@ Example:
 ### Setup and Build FSL GUI image
     MACHINE=<machine name> source fsl-setup-release.sh -b build-x11 -e x11
     MACHINE=<machine name> bitbake fsl-image-gui
+
+# Creating SD card
+Output directories and file names depend on what you build. Following example is based on running 'bitbake core-image-base':
+
+
+    umount /dev/sdb?
+    gunzip -c ~/fsl-community-bsp/build-openrex/tmp/deploy/images/imx6q-openrex/core-image-base-imx6q-openrex.sdcard.gz > ~/fsl-community-bsp/build-openrex/tmp/deploy/images/imx6q-openrex/core-image-base-imx6q-openrex.sdcard
+    sudo dd if=~/fsl-community-bsp/build-openrex/tmp/deploy/images/imx6q-openrex/core-image-base-imx6q-openrex.sdcard of=/dev/sdb
+    umount /dev/sdb?
     
+# Testing it on OpenRex (initial uBoot runs from SPI)
+To test your uBoot on SD card, plug in the card which you have just created into an OpenRex board. Reset the OpenRex board (press "Reset" button), interrupt the uBoot countdown (press "Spacebar" or the "Enter" key) and run following command:
+
+    mw.l 0x020d8040 0x2840; mw.l 0x020d8044 0x10000000; reset
+
+# Updating OpenRex
+TODO
         
     
