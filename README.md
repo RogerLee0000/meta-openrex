@@ -3,25 +3,29 @@ FEDEVEL Yocto Project for OpenRex
 
 # How to compile & use software for OpenRex 
 
-Here you can find basic info about how to start. Detailed documentation about how to compile and use meta-openrex can be found at OpenRex Software website: http://www.imx6rex.com/open-rex/software/
+Here you will find some basic info about how to start with YOCTO and OpenRex. If you follow the steps below, you should be able to compile the source code. 
 
-## Install the `repo` utility
+
+In case you would like to know more about YOCTO & How To Use It, for example how to create, modify, compile and use meta-openrex or how to create your own custom layer, have a look at OpenRex website: http://www.imx6rex.com/open-rex/software/
+
+## Install the repo utility
     mkdir ~/bin
     curl http://commondatastorage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
     chmod a+x ~/bin/repo
-    PATH=${PATH}:~/bin
 
 ## Get the YOCTO project
     cd
     mkdir fsl-community-bsp
     cd fsl-community-bsp
-    git config --global user.email "your_email@example.com"
-    git config --global user.name "yourname"
+    PATH=${PATH}:~/bin
     repo init -u https://github.com/Freescale/fsl-community-bsp-platform -b jethro
 
-## Add openrex support  
+## Add openrex support - create manifest 
     cd ~/fsl-community-bsp/
     mkdir -pv .repo/local_manifests/
+
+Copy and paste this into your Linux host machine 
+
     cat > .repo/local_manifests/imx6openrex.xml << EOF
     <?xml version="1.0" encoding="UTF-8"?>
     <manifest>
@@ -41,9 +45,12 @@ Here you can find basic info about how to start. Detailed documentation about ho
     source openrex-setup.sh
 
 # Building images
-    cd ~/fsl-release-bsp
+    cd ~/fsl-community-bsp/
 
 ## Currently Supported machines <machine name>
+Here is a list of 'machine names' which you can use to build OpenRex images. Use the 'machine name' based on the board you have:
+
+
     imx6q-openrex
     
 ## Setup and Build Console image
@@ -51,6 +58,8 @@ Here you can find basic info about how to start. Detailed documentation about ho
     MACHINE=<machine name> bitbake core-image-base
 
 Example:
+
+
     MACHINE=imx6q-openrex source setup-environment build-openrex
     MACHINE=imx6q-openrex bitbake core-image-base
 
