@@ -19,7 +19,7 @@ SRCBRANCH = "jethro"
 LOCALVERSION = "-yocto"
 
 #Always update SRCREV based on your last commit
-SRCREV = "58f44dd3178b7a9878298bd948082e01f4fe28fb"
+SRCREV = "cc643ef3144090d5b78906361561c6170243e5c8"
 
 KERNEL_SRC ?= "git://github.com/FEDEVEL/openrex-linux-3.14.git;protocol=git"
 SRC_URI = "${KERNEL_SRC};branch=${SRCBRANCH} file://defconfig"
