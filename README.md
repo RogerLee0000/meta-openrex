@@ -52,6 +52,7 @@ Here is a list of 'machine names' which you can use to build OpenRex images. Use
 
 
     imx6q-openrex
+    imx6s-openrex
     
 ### Setup and Build Console image
     MACHINE=<machine name> source setup-environment build-openrex
