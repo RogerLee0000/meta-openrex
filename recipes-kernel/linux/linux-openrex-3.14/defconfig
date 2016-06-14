@@ -1,3 +1,5 @@
+# spidev as loadable module
+CONFIG_SPI_SPIDEV=m
 CONFIG_KERNEL_LZO=y
 CONFIG_SYSVIPC=y
 CONFIG_NO_HZ=y
