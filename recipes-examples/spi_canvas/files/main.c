@@ -21,6 +21,7 @@
  */
 
 #include "config.h"
+#include "canvas_common.h"
 #include "spidevice.h"
 #include "fbscreen.h"
 #include "canvascmd.h"
@@ -33,7 +34,6 @@ void main_loop(
 )
 {
     uint8_t cmd_code;
-    volatile int32_t loop = 1;
     int32_t result;
 
     canvas_dbg("main loop started \n");
@@ -111,11 +111,11 @@ int32_t print_screenfb_info(
 }
 
 struct canvascmd commands[] = {
-    { CANVAS_CLEAR_CMD, canvascmd_clear_screen },
-    { CANVAS_DIMENSION_CMD, canvascmd_get_dimension },
-    { CANVAS_RECTANGLE_CMD, canvascmd_draw_rectangle },
-    { CANVAS_CIRCLE_CMD, canvascmd_draw_circle },
-    { CANVAS_NOCOMMAND_CMD, canvascmd_nocommand },
+    { CANVAS_CMD_CLEAR, canvascmd_clear_screen },
+    { CANVAS_CMD_GETDIMENSION, canvascmd_get_dimension },
+    { CANVAS_CMD_RECTANGLE, canvascmd_draw_rectangle },
+    { CANVAS_CMD_CIRCLE, canvascmd_draw_circle },
+    { CANVAS_CMD_DUMMY, canvascmd_do_nothing },
 // other commands ...
 // and NULL terminated list of commands
     {0},
@@ -125,12 +125,12 @@ void test_screen(
     struct fbscreen *fbscreen
 )
 {
-    fbscreen_clear_screen(fbscreen, GREEN_COLOR);
+    fbscreen_clear_screen(fbscreen, CANVAS_COLOR_GREEN);
     // rectangle
     struct fbscreen_rectangle rectangle = {
         .xpos = fbscreen->var_info.xres_virtual/2,
         .ypos = fbscreen->var_info.yres_virtual/2,
-        .color = BLUE_COLOR,
+        .color = CANVAS_COLOR_BLUE,
         .width = 120,
         .height = 120,
         .in_centre = 1,
@@ -144,7 +144,7 @@ void test_screen(
     struct fbscreen_circle circle = {
         .xpos = fbscreen->var_info.xres_virtual/2,
         .ypos = fbscreen->var_info.yres_virtual/2,
-        .color = RED_COLOR,
+        .color = CANVAS_COLOR_RED,
         .radius = 60,
         .in_centre = 1,
     };
@@ -161,8 +161,9 @@ struct spidevice spidevice = {0};
 int main(void)
 {
     int32_t result;
+    int32_t ds;
 
-    result = fbscreen_init(&fbscreen, FB_DEVICE);
+    result = fbscreen_init(&fbscreen, FB_DEVICE, DISABLE_TTY_PATH);
     if (0 > result)
     {
         printf("cannot initialize framebuffer, error %d\n", result);

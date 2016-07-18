@@ -21,73 +21,11 @@
  */
 
 #include "config.h"
+#include "canvas_common.h"
 #include "spidevice.h"
 #include "fbscreen.h"
 #include "canvascmd.h"
 
-int32_t canvascmd_draw_circle(
-    struct fbscreen *fbscreen,
-    struct spidevice *spidevice
-)
-{
-    struct fbscreen_circle circle = {0};
-    int32_t result;
-
-    if (0 > (result = spidevice_read(
-        spidevice, (uint8_t*)&circle, sizeof(circle)
-    )))
-    {
-        return result;
-    }
-
-    canvas_dbg("drawing circle of size: 0x%x\n", sizeof(circle));
-    canvas_dbg("xpos: 0x%x\n", circle.xpos);
-    canvas_dbg("ypos: 0x%x\n", circle.ypos);
-    canvas_dbg("color: 0x%x\n", circle.color);
-    canvas_dbg("in centre: 0x%x\n", circle.in_centre);
-    canvas_dbg("radius: 0x%x\n", circle.radius);
-
-    if (0 > (result = fbscreen_draw_circle(
-        fbscreen, &circle
-    )))
-    {
-        return result;
-    }
-
-    return 0;
-}
-
-int32_t canvascmd_draw_rectangle(
-    struct fbscreen *fbscreen,
-    struct spidevice *spidevice
-)
-{
-    struct fbscreen_rectangle rectangle;
-    int32_t result;
-
-    if (0 > (result = spidevice_read(
-        spidevice, (uint8_t*)&rectangle, sizeof(rectangle)
-    )))
-    {
-        return result;
-    }
-
-    canvas_dbg("drawing rectangle of size: 0x%x\n", sizeof(rectangle));
-    canvas_dbg("xpos: 0x%x\n", rectangle.xpos);
-    canvas_dbg("ypos: 0x%x\n", rectangle.ypos);
-    canvas_dbg("color: 0x%x\n", rectangle.color);
-    canvas_dbg("in centre: 0x%x\n", rectangle.in_centre);
-    canvas_dbg("width: 0x%x\n", rectangle.width);
-    canvas_dbg("height: 0x%x\n", rectangle.height);
-
-    if (0 > (result = fbscreen_draw_rectangle(
-        fbscreen, &rectangle
-    )))
-    {
-        return result;
-    }
-    return 0;
-}
 
 int32_t canvascmd_get_dimension(
     struct fbscreen *fbscreen,
@@ -95,13 +33,13 @@ int32_t canvascmd_get_dimension(
 )
 {
     int32_t result;
-    uint8_t ack = CANVAS_DIMENSION_ACK;
-    struct fbscreen_dimension dimension = {
+    uint8_t ack = CANVAS_ACK_DIMENSION;
+    struct ack_dimension dimension = {
         .width = fbscreen->var_info.xres_virtual,
         .height = fbscreen->var_info.yres_virtual,
     };
 
-    canvas_dbg("exporting dimension: 0x%x\n", sizeof(dimension));
+    canvas_dbg("cmd dimension: 0x%x\n", sizeof(dimension));
     canvas_dbg("width: 0x%x\n", dimension.width);
     canvas_dbg("height: 0x%x\n", dimension.height);
 
@@ -127,20 +65,100 @@ int32_t canvascmd_clear_screen(
 )
 {
     int32_t result;
-    uint32_t color;
+    struct cmd_clearscreen cmd_screen;
 
     if (0 > (result = spidevice_read(
-        spidevice, (uint8_t*)&color, sizeof(color)
+        spidevice, (uint8_t*)&cmd_screen, sizeof(cmd_screen)
     )))
     {
         return result;
     }
 
-    canvas_dbg("clearing screen: \n");
-    canvas_dbg("color: 0x%x\n", color);
+    canvas_dbg("cmd clear screen: 0x%x\n", sizeof(cmd_screen));
+    canvas_dbg("color: 0x%x\n", cmd_screen.color);
 
     if (0 > (result = fbscreen_clear_screen(
-        fbscreen, color
+        fbscreen, cmd_screen.color
+    )))
+    {
+        return result;
+    }
+    return 0;
+}
+
+int32_t canvascmd_draw_circle(
+    struct fbscreen *fbscreen,
+    struct spidevice *spidevice
+)
+{
+    int32_t result;
+    struct cmd_circle cmd_circle = {0};
+    struct fbscreen_circle fb_circle = {0};
+
+    if (0 > (result = spidevice_read(
+        spidevice, (uint8_t*)&cmd_circle, sizeof(cmd_circle)
+    )))
+    {
+        return result;
+    }
+
+    canvas_dbg("drawing circle: 0x%x\n", sizeof(cmd_circle));
+    canvas_dbg("xpos: 0x%x\n", cmd_circle.xpos);
+    canvas_dbg("ypos: 0x%x\n", cmd_circle.ypos);
+    canvas_dbg("color: 0x%x\n", cmd_circle.color);
+    canvas_dbg("in centre: 0x%x\n", cmd_circle.in_centre);
+    canvas_dbg("radius: 0x%x\n", cmd_circle.radius);
+
+    /* copy circle between 'command' and 'drawning' domain */
+    fb_circle.xpos = cmd_circle.xpos;
+    fb_circle.ypos = cmd_circle.ypos;
+    fb_circle.color = cmd_circle.color;
+    fb_circle.in_centre = cmd_circle.in_centre;
+    fb_circle.radius = cmd_circle.radius;
+
+    if (0 > (result = fbscreen_draw_circle(
+        fbscreen, &fb_circle
+    )))
+    {
+        return result;
+    }
+    return 0;
+}
+
+int32_t canvascmd_draw_rectangle(
+    struct fbscreen *fbscreen,
+    struct spidevice *spidevice
+)
+{
+    int32_t result;
+    struct cmd_rectangle cmd_rectangle = {0};
+    struct fbscreen_rectangle fb_rectangle = {0};
+
+    if (0 > (result = spidevice_read(
+        spidevice, (uint8_t*)&cmd_rectangle, sizeof(cmd_rectangle)
+    )))
+    {
+        return result;
+    }
+
+    canvas_dbg("cmd rectangle: 0x%x\n", sizeof(cmd_rectangle));
+    canvas_dbg("xpos: 0x%x\n", cmd_rectangle.xpos);
+    canvas_dbg("ypos: 0x%x\n", cmd_rectangle.ypos);
+    canvas_dbg("color: 0x%x\n", cmd_rectangle.color);
+    canvas_dbg("in centre: 0x%x\n", cmd_rectangle.in_centre);
+    canvas_dbg("width: 0x%x\n", cmd_rectangle.width);
+    canvas_dbg("height: 0x%x\n", cmd_rectangle.height);
+
+    /* copy rectangle between 'command' and 'drawning' domain */
+    fb_rectangle.xpos = cmd_rectangle.xpos;
+    fb_rectangle.ypos = cmd_rectangle.ypos;
+    fb_rectangle.color = cmd_rectangle.color;
+    fb_rectangle.in_centre = cmd_rectangle.in_centre;
+    fb_rectangle.width = cmd_rectangle.width;
+    fb_rectangle.height = cmd_rectangle.height;
+
+    if (0 > (result = fbscreen_draw_rectangle(
+        fbscreen, &fb_rectangle
     )))
     {
         return result;
@@ -149,11 +167,60 @@ int32_t canvascmd_clear_screen(
     return 0;
 }
 
-int32_t canvascmd_nocommand(
+int32_t canvascmd_get_color(
     struct fbscreen *fbscreen,
     struct spidevice *spidevice
 )
 {
-    canvas_dbg("do nothing \n");
+    int32_t result;
+    uint8_t ack = CANVAS_ACK_DIMENSION;
+    struct cmd_getcolor cmd_getcolor;
+    struct ack_getcolor ack_getcolor;
+
+    /* read requested xpos, ypos */
+    if (0 > (result = spidevice_read(
+        spidevice, (uint8_t*)&cmd_getcolor, sizeof(cmd_getcolor)
+    )))
+    {
+        return result;
+    }
+
+    canvas_dbg("cmd getcolor: 0x%x\n", sizeof(cmd_getcolor));
+    canvas_dbg("xpos: 0x%x\n", cmd_getcolor.xpos);
+    canvas_dbg("ypos: 0x%x\n", cmd_getcolor.ypos);
+
+    /* get color from framebuffer */
+    fbscreen_get_pixel(
+        fbscreen, cmd_getcolor.xpos, cmd_getcolor.ypos, &ack_getcolor.color
+    );
+
+    canvas_dbg("ack getcolor: 0x%x\n", sizeof(ack_getcolor));
+    canvas_dbg("color: 0x%x\n", ack_getcolor.color);
+
+    /* send acknowledge */
+    if (0 > (result = spidevice_write(
+        spidevice, (uint8_t*)&ack, sizeof(ack)
+    )))
+    {
+        return result;
+    }
+
+    /* send acknowledge data */
+    if (0 > (result = spidevice_write(
+        spidevice, (uint8_t*)&ack_getcolor, sizeof(ack_getcolor)
+    )))
+    {
+        return result;
+    }
+
+    return 0;
+}
+
+int32_t canvascmd_do_nothing(
+    struct fbscreen *fbscreen,
+    struct spidevice *spidevice
+)
+{
+    canvas_dbg("cmd do nothing \n");
     return 0;
 }

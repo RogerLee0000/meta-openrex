@@ -30,6 +30,7 @@
 #include <linux/spi/spidev.h>
 #include <sys/types.h>
 #include <string.h>
+
 #include "spidevice.h"
 
 int32_t spidevice_init(

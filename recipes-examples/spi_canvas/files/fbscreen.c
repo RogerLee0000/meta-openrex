@@ -30,15 +30,19 @@
 #include <sys/ioctl.h>
 #include <assert.h>
 #include <sys/types.h>
+#include <linux/kd.h>
+
+#include "config.h"
 #include "fbscreen.h"
 #include "math.h"
 
-//https://www.kernel.org/doc/Documentation/fb/fbuffer.txt
-//https://www.kernel.org/doc/Documentation/fb/api.txt
+/* https://www.kernel.org/doc/Documentation/fb/fbuffer.txt
+ * https://www.kernel.org/doc/Documentation/fb/api.txt */
 
 int32_t fbscreen_init(
     struct fbscreen *fbscreen,
-    const char *dev_path
+    const char *dev_path,
+    const char *disable_tty_path
 )
 {
     if (NULL == fbscreen || NULL == dev_path)
@@ -56,6 +60,17 @@ int32_t fbscreen_init(
     {
         fbscreen->fbuffer = NULL;
         return -1;
+    }
+    /* switch tty to graphic mode
+     * - get rid of blinking cursor
+     * - disable sleep mode */
+    if (NULL != disable_tty_path)
+    {
+        int32_t fd;
+        if ((fd = open(disable_tty_path, O_RDWR)) < 0)
+            return fd;
+        if (ioctl(fd, KDSETMODE, KD_GRAPHICS) < 0)
+            return -1;
     }
     return 0;
 }
@@ -88,17 +103,49 @@ int32_t fbscreen_set_pixel(
     if (xpos < 0 || ypos < 0 || xpos >= fbscreen->var_info.xres_virtual || ypos >= fbscreen->var_info.yres_virtual)
         return -2;
 
-    // TODO: fix integer range
+    /* TODO: fix integer range */
     uint32_t pixel_position = ((xpos + fbscreen->var_info.xoffset) * fbscreen->var_info.bits_per_pixel/8);
     pixel_position += (ypos + fbscreen->var_info.yoffset) * fbscreen->fix_info.line_length;
 
-    // calculate pixel base address
+    /* calculate pixel base address */
     color_addr = fbscreen->fbuffer + pixel_position;
 
-    // setup color of pixels
-    *(color_addr + (fbscreen->var_info.red.offset >> 3)) = RGBCOLOR_TO_RED(color);
-    *(color_addr + (fbscreen->var_info.green.offset >> 3)) = RGBCOLOR_TO_GREEN(color);
-    *(color_addr + (fbscreen->var_info.blue.offset >> 3)) = RGBCOLOR_TO_BLUE(color);
+    /* setup color of pixels */
+    *(color_addr + (fbscreen->var_info.red.offset >> 3)) = CANVAS_RGBCOLOR_RED(color);
+    *(color_addr + (fbscreen->var_info.green.offset >> 3)) = CANVAS_RGBCOLOR_GREEN(color);
+    *(color_addr + (fbscreen->var_info.blue.offset >> 3)) = CANVAS_RGBCOLOR_BLUE(color);
+
+    return 0;
+}
+
+int32_t fbscreen_get_pixel(
+    const struct fbscreen *fbscreen,
+    const int32_t xpos,
+    const int32_t ypos,
+    uint32_t *color
+)
+{
+    uint8_t *color_addr;
+    assert(!(NULL == fbscreen));
+    if (NULL == fbscreen)
+        return -1;
+
+    if (xpos < 0 || ypos < 0 || xpos >= fbscreen->var_info.xres_virtual || ypos >= fbscreen->var_info.yres_virtual)
+        return -2;
+
+    /* TODO: fix integer range */
+    uint32_t pixel_position = ((xpos + fbscreen->var_info.xoffset) * fbscreen->var_info.bits_per_pixel/8);
+    pixel_position += (ypos + fbscreen->var_info.yoffset) * fbscreen->fix_info.line_length;
+
+    /* calculate pixel base address */
+    color_addr = fbscreen->fbuffer + pixel_position;
+
+    /* get color at address */
+    *color = CANVAS_RGBCOLOR(
+        *(color_addr + (fbscreen->var_info.red.offset >> 3)),
+        *(color_addr + (fbscreen->var_info.green.offset >> 3)),
+        *(color_addr + (fbscreen->var_info.blue.offset >> 3))
+    );
 
     return 0;
 }
@@ -192,19 +239,3 @@ int32_t fbscreen_draw_circle(
 
     return 0;
 }
-
-int32_t fbscreen_draw_triangle(
-    const struct fbscreen *fbscreen,
-    const struct fbscreen_triangle *triangle
-)
-{
-    
-
-    
-    return 0;
-}
-
-// TODO: rotation and basic point
-
-
-

@@ -27,14 +27,6 @@
 #include "spidevice.h"
 #include "fbscreen.h"
 
-#define CANVAS_CLEAR_CMD        0x01
-#define CANVAS_DIMENSION_CMD    0x02
-#define CANVAS_RECTANGLE_CMD    0x03
-#define CANVAS_CIRCLE_CMD       0x04
-#define CANVAS_NOCOMMAND_CMD    0xFF
-
-#define CANVAS_DIMENSION_ACK    0x02
-
 struct canvascmd {
     uint8_t cmd_code;
     int32_t (*cmd_exec)(struct fbscreen *fbscreen, struct spidevice *spidevice);
@@ -60,7 +52,7 @@ int32_t canvascmd_clear_screen(
     struct spidevice *spidevice
 );
 
-int32_t canvascmd_nocommand(
+int32_t canvascmd_do_nothing(
     struct fbscreen *fbscreen,
     struct spidevice *spidevice
 );

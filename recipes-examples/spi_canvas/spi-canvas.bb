@@ -11,6 +11,7 @@ SRC_URI += "file://fbscreen.h"
 SRC_URI += "file://spidevice.c"
 SRC_URI += "file://spidevice.h"
 SRC_URI += "file://config.h"
+SRC_URI += "file://canvas_common.h"
 SRC_URI += "file://readme.txt"
 SRC_URI += "file://COPYRIGHT"
 
@@ -36,12 +37,13 @@ do_install() {
 	install -d ${D}/${appdir}
 	install -m 0755 ${B}/spi_canvasd ${D}/${appdir}
 	install -m 0666 ${S}/main.c ${D}/${appdir}
-	install -m 0666 ${S}/config.h ${D}/${appdir}
 	install -m 0666 ${S}/canvascmd.c ${D}/${appdir}
 	install -m 0666 ${S}/canvascmd.h ${D}/${appdir}
 	install -m 0666 ${S}/fbscreen.c ${D}/${appdir}
 	install -m 0666 ${S}/fbscreen.h ${D}/${appdir}
 	install -m 0666 ${S}/spidevice.c ${D}/${appdir}
 	install -m 0666 ${S}/spidevice.h  ${D}/${appdir}
+	install -m 0666 ${S}/config.h ${D}/${appdir}
+	install -m 0666 ${S}/canvas_common.h ${D}/${appdir}
 	install -m 0666 ${S}/readme.txt ${D}/${appdir}
 }
