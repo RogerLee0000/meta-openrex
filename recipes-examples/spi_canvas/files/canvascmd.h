@@ -52,6 +52,11 @@ int32_t canvascmd_clear_screen(
     struct spidevice *spidevice
 );
 
+int32_t canvascmd_flush_drawing(
+    struct fbscreen *fbscreen,
+    struct spidevice *spidevice
+);
+
 int32_t canvascmd_do_nothing(
     struct fbscreen *fbscreen,
     struct spidevice *spidevice

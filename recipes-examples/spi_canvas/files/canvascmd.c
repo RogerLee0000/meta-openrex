@@ -26,7 +26,6 @@
 #include "fbscreen.h"
 #include "canvascmd.h"
 
-
 int32_t canvascmd_get_dimension(
     struct fbscreen *fbscreen,
     struct spidevice *spidevice
@@ -34,10 +33,10 @@ int32_t canvascmd_get_dimension(
 {
     int32_t result;
     uint8_t ack = CANVAS_ACK_DIMENSION;
-    struct ack_dimension dimension = {
-        .width = fbscreen->var_info.xres_virtual,
-        .height = fbscreen->var_info.yres_virtual,
-    };
+    struct ack_dimension dimension = { 0 };
+
+    dimension.width = fbscreen->fbunits[ fbscreen->index ].var_info.xres_virtual;
+    dimension.height = fbscreen->fbunits[ fbscreen->index ].var_info.yres_virtual;
 
     canvas_dbg("cmd dimension: 0x%x\n", sizeof(dimension));
     canvas_dbg("width: 0x%x\n", dimension.width);
@@ -109,7 +108,7 @@ int32_t canvascmd_draw_circle(
     canvas_dbg("in centre: 0x%x\n", cmd_circle.in_centre);
     canvas_dbg("radius: 0x%x\n", cmd_circle.radius);
 
-    /* copy circle between 'command' and 'drawning' domain */
+    /* copy circle between 'command' and 'drawing' domain */
     fb_circle.xpos = cmd_circle.xpos;
     fb_circle.ypos = cmd_circle.ypos;
     fb_circle.color = cmd_circle.color;
@@ -149,7 +148,7 @@ int32_t canvascmd_draw_rectangle(
     canvas_dbg("width: 0x%x\n", cmd_rectangle.width);
     canvas_dbg("height: 0x%x\n", cmd_rectangle.height);
 
-    /* copy rectangle between 'command' and 'drawning' domain */
+    /* copy rectangle between 'command' and 'drawing' domain */
     fb_rectangle.xpos = cmd_rectangle.xpos;
     fb_rectangle.ypos = cmd_rectangle.ypos;
     fb_rectangle.color = cmd_rectangle.color;
@@ -213,6 +212,16 @@ int32_t canvascmd_get_color(
         return result;
     }
 
+    return 0;
+}
+
+int32_t canvascmd_flush_drawing(
+    struct fbscreen *fbscreen,
+    struct spidevice *spidevice
+)
+{
+    canvas_dbg("flush drawing:\n");
+    fbscreen_flush_drawing(fbscreen);
     return 0;
 }
 

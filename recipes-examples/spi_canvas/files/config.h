@@ -23,12 +23,12 @@
 #ifndef __CONFIG_H__
 #define __CONFIG_H__
 
-#define canvas_dbg printf
-//#define canvas_dbg
+//#define canvas_dbg printf
+#define canvas_dbg 
 
 #define DISABLE_TTY_PATH "/dev/tty1"
 #define FB_DEVICE "/dev/fb0"
-#define SPIDEV_SPEED 40000
+#define SPIDEV_SPEED 400000
 #define SPIDEV_PATH "/dev/spidev2.0"
 
 

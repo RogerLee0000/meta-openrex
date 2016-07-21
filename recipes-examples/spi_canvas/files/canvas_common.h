@@ -47,6 +47,7 @@
 #define CANVAS_CMD_RECTANGLE            (0x03)
 #define CANVAS_CMD_CIRCLE               (0x04)
 #define CANVAS_CMD_GETCOLOR             (0x05)
+#define CANVAS_CMD_FLUSH_DRAWING        (0x06)
 #define CANVAS_CMD_DUMMY                (0xFF)
 
 /* acknowledge from Linux to baremetal */
@@ -81,7 +82,6 @@ struct cmd_rectangle {
     uint32_t width;
     uint32_t height;
 };
-
 
 struct cmd_getcolor {
     int32_t xpos;

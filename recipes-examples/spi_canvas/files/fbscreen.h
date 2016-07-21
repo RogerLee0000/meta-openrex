@@ -42,13 +42,23 @@
 #   define CANVAS_RGBCOLOR_BLUE(color)     ((color) & 0xFF)
 #endif
 
-/* framebuffer content */
-struct fbscreen {
+/* framebuffer struct */
+struct fbscreen_fbunit
+{
     int32_t fd;
+    uint8_t *fbmem;
+    uint8_t *tmp_fbmem;
+    uint32_t use_tmp;
+    uint32_t size;
     struct fb_var_screeninfo var_info;
     struct fb_fix_screeninfo fix_info;
-    uint8_t *fbuffer;
-    uint32_t fsize;
+};
+
+/* framebuffers group */
+struct fbscreen {
+    struct fbscreen_fbunit fbunits[2];
+    int32_t index;
+    int32_t limit;
 };
 
 /* fbscreen circle */
@@ -70,10 +80,15 @@ struct fbscreen_rectangle {
     uint32_t height;
 };
 
+// int32_t fbscreen_init(
+//     struct fbscreen *fbscreen,
+//     const char *fb_path1,
+//     const char *fb_path2
+// );
+
 int32_t fbscreen_init(
     struct fbscreen *fbscreen,
-    const char *dev_path,
-    const char *disable_tty_path
+    const char *fb_path1
 );
 
 int32_t fbscreen_deinit(
@@ -107,6 +122,11 @@ int32_t fbscreen_draw_rectangle(
 int32_t fbscreen_draw_circle(
     const struct fbscreen *fbscreen,
     const struct fbscreen_circle *circle
+);
+
+int32_t fbscreen_flush_drawing
+(
+    const struct fbscreen *fbscreen
 );
 
 #endif
