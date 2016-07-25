@@ -25,6 +25,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <assert.h>
+#include <stdio.h>
 
 #include "config.h"
 #include "canvas_common.h"
@@ -295,7 +296,7 @@ int main(int argc, char **argv)
             result = disable_tty(options.tty_path);
             if (0 > result)
             {
-                printf("cannot disable tty %d\n", result);
+                fprintf(stderr, "cannot disable tty '%s', error %d\n", options.tty_path, result);
                 return -1;
             }
         }
@@ -304,7 +305,7 @@ int main(int argc, char **argv)
         result = fbscreen_init_single(&fbscreen, options.fb0_path);
         if (0 > result)
         {
-            printf("cannot initialize framebuffers, error %d\n", result);
+            fprintf(stderr, "cannot initialize framebuffers '%s', error %d\n", options.fb0_path, result);
             goto error1;
         }
 
@@ -312,7 +313,7 @@ int main(int argc, char **argv)
         result = spidevice_init(&spidevice, options.spidev_path, options.baudrate);
         if (0 > result)
         {
-            printf("cannot initialize spi device, error %d\n", result);
+            fprintf(stderr, "cannot initialize spi device '%s', error %d\n", options.spidev_path, result);
             goto error2;
         }
 

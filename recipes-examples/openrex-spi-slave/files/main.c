@@ -111,7 +111,7 @@ int32_t main_loop(const char *dev_path, uint32_t speed)
     /* open spi device */
     if ((fd = open(dev_path, O_RDWR)) < 0)
     {
-        fprintf(stderr, "cannot open '%s'\n", dev_path);
+        fprintf(stderr, "cannot initialize spi device '%s', error %d\n", dev_path, fd);
         return -1;
     }
 
