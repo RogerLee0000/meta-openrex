@@ -86,7 +86,7 @@ struct fbscreen_rectangle {
 //     const char *fb_path2
 // );
 
-int32_t fbscreen_init(
+int32_t fbscreen_init_single(
     struct fbscreen *fbscreen,
     const char *fb_path1
 );

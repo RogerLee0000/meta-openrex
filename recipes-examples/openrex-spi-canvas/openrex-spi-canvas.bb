@@ -19,10 +19,8 @@ S = "${WORKDIR}"
 
 inherit autotools gettext
 
-appdir = "home/root/examples/drawd"
-
-FILES_${PN} = "/${appdir}/*"
-FILES_${PN}-dbg = "/${appdir}/.debug/*"
+FILES_${PN} = "${bindir}/*"
+FILES_${PN}-dbg = "${bindir}/.debug/*"
 
 do_compile() {
 	${CC} -Wall -lm \
@@ -30,20 +28,10 @@ do_compile() {
 		${S}/canvascmd.c \
 		${S}/fbscreen.c \
 		${S}/spidevice.c \
-		-o ${B}/spi_canvasd
+		-o ${B}/openrex_spi_canvas
 }
 
 do_install() {
-	install -d ${D}/${appdir}
-	install -m 0755 ${B}/spi_canvasd ${D}/${appdir}
-	install -m 0666 ${S}/main.c ${D}/${appdir}
-	install -m 0666 ${S}/canvascmd.c ${D}/${appdir}
-	install -m 0666 ${S}/canvascmd.h ${D}/${appdir}
-	install -m 0666 ${S}/fbscreen.c ${D}/${appdir}
-	install -m 0666 ${S}/fbscreen.h ${D}/${appdir}
-	install -m 0666 ${S}/spidevice.c ${D}/${appdir}
-	install -m 0666 ${S}/spidevice.h  ${D}/${appdir}
-	install -m 0666 ${S}/config.h ${D}/${appdir}
-	install -m 0666 ${S}/canvas_common.h ${D}/${appdir}
-	install -m 0666 ${S}/readme.txt ${D}/${appdir}
+	install -d ${D}${bindir}
+	install -m 0755 ${B}/openrex_spi_canvas ${D}${bindir}
 }

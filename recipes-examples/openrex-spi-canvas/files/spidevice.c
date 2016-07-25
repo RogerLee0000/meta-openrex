@@ -83,25 +83,25 @@ int32_t spidevice_transfer(
     new_message.speed_hz = spidevice->speed_hz;
     new_message.len = 1;
 
+    // use dummy rx/tx buffer
+    if (0 == message->tx_buf)
+    {
+        new_message.tx_buf = &tx_dummy;
+    }
+    if (0 == message->rx_buf)
+    {
+        new_message.rx_buf = &rx_dummy;
+    }
+
     // SPP peripheral on SLAVE requires 
     // deassert CS for each WORD
     for (int i = 0; i < message->len; i++)
     {
-        // transmit or push dummy pattern
-        if (0 == message->tx_buf)
-        {
-            new_message.tx_buf = &tx_dummy;
-        }
-        else
+        if (0 != message->tx_buf)
         {
             new_message.tx_buf = message->tx_buf + i;
         }
-        // receive or pop rxFIFO
-        if (0 == message->rx_buf)
-        {
-            new_message.rx_buf = &rx_dummy;
-        }
-        else
+        if (0 != message->rx_buf)
         {
             new_message.rx_buf = message->rx_buf + i;
         }

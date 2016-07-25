@@ -21,12 +21,105 @@
  */
 
 #include <linux/kd.h>
+#include <getopt.h>
+#include <string.h>
+#include <stdlib.h>
+#include <assert.h>
 
 #include "config.h"
 #include "canvas_common.h"
 #include "spidevice.h"
 #include "fbscreen.h"
 #include "canvascmd.h"
+
+
+#if 0
+void test_screen(
+    struct fbscreen *fbscreen
+)
+{
+    struct fbscreen_fbunit *fbunit = &fbscreen->fbunits[ fbscreen->index ];
+    fbscreen_clear_screen(fbscreen, CANVAS_COLOR_GREEN);
+    // rectangle
+    struct fbscreen_rectangle rectangle = {
+        .xpos = fbunit->var_info.xres_virtual/2,
+        .ypos = fbunit->var_info.yres_virtual/2,
+        .color = CANVAS_COLOR_BLUE,
+        .width = 120,
+        .height = 120,
+        .in_centre = 1,
+    };
+    fbscreen_draw_rectangle(fbscreen, &rectangle);
+    rectangle.in_centre = 0,
+    rectangle.xpos = 0;
+    rectangle.ypos = 0;
+    fbscreen_draw_rectangle(fbscreen, &rectangle);
+    // circle
+    struct fbscreen_circle circle = {
+        .xpos = fbunit->var_info.xres_virtual/2,
+        .ypos = fbunit->var_info.yres_virtual/2,
+        .color = CANVAS_COLOR_RED,
+        .radius = 60,
+        .in_centre = 1,
+    };
+    fbscreen_draw_circle(fbscreen, &circle);
+    circle.in_centre = 0;
+    circle.xpos = 0;
+    circle.ypos = 0;
+    fbscreen_draw_circle(fbscreen, &circle);
+}
+#endif
+
+/* application options structure */
+#define PATH_SIZE 256
+struct app_options {
+    char fb0_path[PATH_SIZE + 1];
+    char fb1_path[PATH_SIZE + 1];
+    uint32_t baudrate;
+    char tty_path[PATH_SIZE + 1];
+    char spidev_path[PATH_SIZE + 1];
+    int print_help;
+};
+
+int32_t parse_opt(
+    int argc,
+    char **argv,
+    struct option *long_options,
+    struct app_options *app_options
+)
+{
+    int long_index = 0;
+    int opt;
+
+    assert(!(app_options == NULL));
+    if (app_options == NULL) return -1;
+
+    while (
+        (opt = getopt_long(argc, argv,"f:t:s:b:h", long_options, &long_index )) != -1
+    )
+    {
+        switch (opt)
+        {
+            case 'f':
+                strncpy(app_options->fb0_path, optarg, PATH_SIZE);
+            break;
+            case 't':
+                strncpy(app_options->tty_path, optarg, PATH_SIZE);
+            break;
+            case 's':
+                strncpy(app_options->spidev_path, optarg, PATH_SIZE);
+            break;
+            case 'b':
+                app_options->baudrate = atoi(optarg);
+            break;
+            case 'h':
+                app_options->print_help = 1;
+            break;
+        }
+    }
+
+    return 0;
+}
 
 int32_t disable_tty(
     const char *tty_path
@@ -143,6 +236,17 @@ int32_t print_screenfb_info(
     return 0;
 }
 
+/* options to parse */
+static struct option long_options[] = {
+    { "framebuffer", required_argument, 0, 'f' },
+    { "tty", required_argument, 0, 't' },
+    { "spidev", required_argument, 0, 's' },
+    { "baudrate", required_argument, 0, 'b' },
+    { "help", required_argument, 0, '-h' },
+    { 0 },
+};
+
+/* supported commands */
 struct canvascmd commands[] = {
     { CANVAS_CMD_CLEAR, canvascmd_clear_screen },
     { CANVAS_CMD_GETDIMENSION, canvascmd_get_dimension },
@@ -155,79 +259,73 @@ struct canvascmd commands[] = {
     {0},
 };
 
-void test_screen(
-    struct fbscreen *fbscreen
-)
-{
-    struct fbscreen_fbunit *fbunit = &fbscreen->fbunits[ fbscreen->index ];
-    fbscreen_clear_screen(fbscreen, CANVAS_COLOR_GREEN);
-    // rectangle
-    struct fbscreen_rectangle rectangle = {
-        .xpos = fbunit->var_info.xres_virtual/2,
-        .ypos = fbunit->var_info.yres_virtual/2,
-        .color = CANVAS_COLOR_BLUE,
-        .width = 120,
-        .height = 120,
-        .in_centre = 1,
-    };
-    fbscreen_draw_rectangle(fbscreen, &rectangle);
-    rectangle.in_centre = 0,
-    rectangle.xpos = 0;
-    rectangle.ypos = 0;
-    fbscreen_draw_rectangle(fbscreen, &rectangle);
-    // circle
-    struct fbscreen_circle circle = {
-        .xpos = fbunit->var_info.xres_virtual/2,
-        .ypos = fbunit->var_info.yres_virtual/2,
-        .color = CANVAS_COLOR_RED,
-        .radius = 60,
-        .in_centre = 1,
-    };
-    fbscreen_draw_circle(fbscreen, &circle);
-    circle.in_centre = 0;
-    circle.xpos = 0;
-    circle.ypos = 0;
-    fbscreen_draw_circle(fbscreen, &circle);
-}
 
 struct fbscreen fbscreen = {0};
 struct spidevice spidevice = {0};
 
-int main(void)
+
+int32_t print_help(void)
 {
-    int32_t result;
+    printf("openrex_spi_canvas -f /dev/fb0 -s /dev/spidevice2.0 -t /dev/tty1 -b 400000 \n");
+    printf("-f = path to framebuffer device \n");
+    printf("-t = path to graphic TTY device that need to be disabled \n");
+    printf("-s = path to spidev device that is connected to LPC \n");
+    printf("-b = baudrate speed \n");
+    return 0;
+}
 
-#ifdef DISABLE_TTY_PATH
-    result = disable_tty(DISABLE_TTY_PATH);
-    if (0 > result)
-    {
-        printf("cannot disable tty %d\n", result);
-        goto error0;
-    }    
-#endif
 
-    result = fbscreen_init(&fbscreen, FB_DEVICE);
-    if (0 > result)
+int main(int argc, char **argv)
+{
+    struct app_options options = {0};
+    int32_t result = 0;
+
+    /* parse command line options */
+    parse_opt(argc, argv, &long_options, &options);
+
+    if (options.print_help)
     {
-        printf("cannot initialize framebuffers, error %d\n", result);
-        goto error1;
+        print_help();
     }
-    result = spidevice_init(&spidevice, SPIDEV_PATH, SPIDEV_SPEED);
-    if (0 > result)
+    else
     {
-        printf("cannot initialize spi device, error %d\n", result);
-        goto error2;
+        /* optional - disable graphics tty */
+        if (NULL != options.tty_path)
+        {
+            result = disable_tty(options.tty_path);
+            if (0 > result)
+            {
+                printf("cannot disable tty %d\n", result);
+                return -1;
+            }
+        }
+
+        /* initialize single framebuffer */
+        result = fbscreen_init_single(&fbscreen, options.fb0_path);
+        if (0 > result)
+        {
+            printf("cannot initialize framebuffers, error %d\n", result);
+            goto error1;
+        }
+
+        /* initialize spi device */
+        result = spidevice_init(&spidevice, options.spidev_path, options.baudrate);
+        if (0 > result)
+        {
+            printf("cannot initialize spi device, error %d\n", result);
+            goto error2;
+        }
+
+        // print_screenfb_info(&fbscreen);
+        // test_screen(&fbscreen);
+        main_loop(&fbscreen, &spidevice, commands);
+
+        error2:
+            spidevice_deinit(&spidevice);
+        error1:
+            fbscreen_deinit(&fbscreen);
     }
 
-    // print_screenfb_info(&fbscreen);
-    // test_screen(&fbscreen);
-    main_loop(&fbscreen, &spidevice, commands);
-
-error2:
-    spidevice_deinit(&spidevice);
-error1:
-    fbscreen_deinit(&fbscreen);
-error0:
-    return result; 
+    return result;
 }
 

@@ -80,7 +80,7 @@ static int32_t fbscreen_initfb
 //     const char *fb_path1
 //     const char *fb_path2
 // )
-int32_t fbscreen_init(
+int32_t fbscreen_init_single(
     struct fbscreen *fbscreen,
     const char *fb_path1
 )
@@ -137,6 +137,8 @@ int32_t fbscreen_deinit(
             fbscreen->fbunits[ i ].size
         );
         close(fbscreen->fbunits[ i ].fd);
+        if (fbscreen->fbunits[ i ].tmp_fbmem)
+            free(fbscreen->fbunits[ i ].tmp_fbmem);
     }
 
     return 0;
