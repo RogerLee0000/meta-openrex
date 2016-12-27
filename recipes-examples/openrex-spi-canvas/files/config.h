@@ -23,8 +23,8 @@
 #ifndef __CONFIG_H__
 #define __CONFIG_H__
 
-//#define canvas_dbg printf
-#define canvas_dbg 
+// #define canvas_dbg(...) printf(__VA_ARGS__)
+#define canvas_dbg(...)
 
 // #define DISABLE_TTY_PATH "/dev/tty1"
 // #define FB_DEVICE "/dev/fb0"
