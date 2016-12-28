@@ -35,8 +35,9 @@ int32_t canvascmd_get_dimension(
     uint8_t ack = CANVAS_ACK_DIMENSION;
     struct ack_dimension dimension = { 0 };
 
-    dimension.width = fbscreen->fbunits[ fbscreen->index ].var_info.xres_virtual;
-    dimension.height = fbscreen->fbunits[ fbscreen->index ].var_info.yres_virtual;
+    dimension.width = fbscreen->var_info.xres;
+    dimension.height = fbscreen->var_info.yres;
+    dimension.pixel_bits = fbscreen->var_info.bits_per_pixel;
 
     canvas_dbg("cmd dimension: 0x%x\n", sizeof(dimension));
     canvas_dbg("width: 0x%x\n", dimension.width);

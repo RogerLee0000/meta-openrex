@@ -36,89 +36,80 @@
 #include "math.h"
 #include "string.h"
 
+/* transform generic R|G|B to display R|G|B according color info */
+#define FBSCREEN_COLOR2PIX(off, len, val) ((((1 << (len)) - 1) & (val)) << (off))
+#define FBSCREEN_PIX2COLOR(off, len, val) (((val) >> (off)) & ((1 << (len)) - 1))
+
+
 /* https://www.kernel.org/doc/Documentation/fb/fbuffer.txt
  * https://www.kernel.org/doc/Documentation/fb/api.txt */
 
-static int32_t fbscreen_initfb
-(
-    const char *path,
-    struct fbscreen_fbunit *fbunit
-)
-{
-    int32_t result;
-    /* open framebuffer */
-    fbunit->fd = open(path, O_RDWR);
-    assert(!(fbunit->fd < 0));
-    if (fbunit->fd < 0) return -1;
-    /* get fixed info */
-    result = ioctl(fbunit->fd, FBIOGET_FSCREENINFO, &fbunit->fix_info);
-    assert(!(result < 0));
-    if (result < 0) return -1;
-    /* get variable info */
-    result = ioctl(fbunit->fd, FBIOGET_VSCREENINFO, &fbunit->var_info);
-    assert(!(result < 0));
-    if (result < 0) return -1;
-    /* expected size of file */
-    fbunit->size = fbunit->var_info.yres_virtual * fbunit->fix_info.line_length;
-    /* map file into memory */
-    fbunit->fbmem = mmap(
-        NULL, fbunit->size, PROT_READ | PROT_WRITE, MAP_SHARED, fbunit->fd, 0
-    );
-    //0 ??
-    assert(!(fbunit->fbmem <= 0));
-    if (fbunit->fbmem <= 0)
-    {
-        fbunit->fbmem = NULL;
-        return -1;
-    }
-
-    return 0;
-}
-
-// int32_t fbscreen_init(
-//     struct fbscreen *fbscreen,
-//     const char *fb_path1
-//     const char *fb_path2
-// )
-int32_t fbscreen_init_single(
+int32_t fbscreen_init(
     struct fbscreen *fbscreen,
-    const char *fb_path1
+    const char *fb_path,
+    const uint8_t color_depth
 )
 {
     int32_t result = -1;
-    // const char const *paths[] = { fb_path1, fb_path2 };
-    const char const *paths[] = { fb_path1 };
 
-    // if ((NULL == fbscreen) || (NULL == fb_path1) || (NULL == fb_path2))
-    assert(!((NULL == fbscreen) || (NULL == fb_path1)));
-    if ((NULL == fbscreen) || (NULL == fb_path1))
+    assert(!((NULL == fbscreen) || (NULL == fb_path)));
+    if ((NULL == fbscreen) || (NULL == fb_path))
         return -1;
 
-    /* swapping framebuffers doesn't work the way I want.
-     * I need to dig deeper in IPU options, this 
-     * is just a workaround */
-    fbscreen->limit = 0;
-    fbscreen->index = 0;
+    /* open framebuffer */
+    fbscreen->fb_fd = open(fb_path, O_RDWR);
+    assert(!(fbscreen->fb_fd < 0));
+    if (fbscreen->fb_fd < 0) return -1;
 
-    /* initialize framebuffers */
-    for (int32_t i = 0; i <= fbscreen->limit; i++)
+    /* get fixed info */
+    result = ioctl(fbscreen->fb_fd, FBIOGET_FSCREENINFO, &fbscreen->fix_info);
+    assert(!(result < 0));
+    if (result < 0) return -1;
+
+    /* get variable info */
+    result = ioctl(fbscreen->fb_fd, FBIOGET_VSCREENINFO, &fbscreen->var_info);
+    assert(!(result < 0));
+    if (result < 0) return -1;
+
+    assert(!((color_depth != 16) && (color_depth != 24) && (color_depth != 32)));
+    if ((color_depth != 16) && (color_depth != 24) && (color_depth != 32))
+        return -1;
+
+    /* try to double 'virtual_yres' according visible 'yres' */
+    fbscreen->var_info.yres_virtual = fbscreen->var_info.yres * 2;
+    fbscreen->var_info.xres_virtual = fbscreen->var_info.xres;
+    fbscreen->var_info.xoffset = 0;
+    fbscreen->var_info.yoffset = 0;
+    fbscreen->var_info.bits_per_pixel = color_depth;
+    // fbscreen->var_info.activate = FB_ACTIVATE_VBL;
+    result = ioctl(fbscreen->fb_fd, FBIOPUT_VSCREENINFO, &fbscreen->var_info);
+    assert(!(result < 0));
+    if (result < 0) return -1;
+
+    /* expected size of fb (virtual_yres * virtual_xres * depth) */
+    fbscreen->fb_mem_size = fbscreen->var_info.yres_virtual * fbscreen->var_info.xres * (fbscreen->var_info.bits_per_pixel >> 3);
+    /* map file into memory */
+    fbscreen->fb_mem = mmap(
+        NULL, fbscreen->fb_mem_size, PROT_READ | PROT_WRITE, MAP_SHARED, fbscreen->fb_fd, 0
+    );
+    assert(!(fbscreen->fb_mem <= 0));
+    if (fbscreen->fb_mem <= 0)
     {
-        struct fbscreen_fbunit *fbunit = &fbscreen->fbunits[ i ];
-        /* Initialize framebuffer */
-        result = fbscreen_initfb(paths[ i ], fbunit);
-        assert(!(result < 0));
-        if (result < 0)
-            return -1;
-        /* workaround with temp memory */
-        fbunit->tmp_fbmem = malloc(fbunit->size);
-        assert(!(fbunit->tmp_fbmem == NULL));
-        if (fbunit->tmp_fbmem == NULL)
-            return -1;
-        /* copy fbmem to fbmem_tmp*/
-        memcpy(fbunit->tmp_fbmem, fbunit->fbmem, fbunit->size);
-        /* use tmp memory instead swapping fbuffers */
-        fbunit->use_tmp = 1;
+        fbscreen->fb_mem = NULL;
+        return -1;
     }
+
+    /* clear whole fb - set to black */
+    memset(fbscreen->fb_mem, 0, fbscreen->fb_mem_size);
+
+    /* prepare offsets, addresses */
+    fbscreen->drawing_mem_size = fbscreen->var_info.yres * fbscreen->var_info.xres * (fbscreen->var_info.bits_per_pixel >> 3);
+    fbscreen->drawing_yoffsets[0] = 0;
+    fbscreen->drawing_yoffsets[1] = fbscreen->var_info.yres;
+    fbscreen->drawing_addrs[0] = fbscreen->fb_mem;
+    fbscreen->drawing_addrs[1] = fbscreen->fb_mem + fbscreen->drawing_mem_size;
+    fbscreen->drawing_idx = 1;
+    fbscreen->drawing_mem = fbscreen->drawing_addrs[fbscreen->drawing_idx];
 
     return 0;
 }
@@ -130,16 +121,8 @@ int32_t fbscreen_deinit(
     if (NULL == fbscreen)
         return -1;
 
-    for (int32_t i = 0; i <= fbscreen->limit; i++)
-    {
-        munmap(
-            fbscreen->fbunits[ i ].fbmem,
-            fbscreen->fbunits[ i ].size
-        );
-        close(fbscreen->fbunits[ i ].fd);
-        if (fbscreen->fbunits[ i ].tmp_fbmem)
-            free(fbscreen->fbunits[ i ].tmp_fbmem);
-    }
+    munmap(fbscreen->fb_mem, fbscreen->fb_mem_size);
+    close(fbscreen->fb_fd);
 
     return 0;
 }
@@ -157,34 +140,53 @@ int32_t fbscreen_set_pixel(
 
     /* assert params */
     assert(!(NULL == fbscreen));
-    if ((NULL == fbscreen) || (fbscreen->index > fbscreen->limit))
-        return -1;
+    if (NULL == fbscreen) return -1;
 
     /* get var/fix info */
-    var_info = &fbscreen->fbunits[ fbscreen->index ].var_info;
-    fix_info = &fbscreen->fbunits[ fbscreen->index ].fix_info;
+    var_info = &fbscreen->var_info;
+    fix_info = &fbscreen->fix_info;
 
-    if ((xpos < 0) || (ypos < 0) || (xpos >= var_info->xres_virtual) || (ypos >= var_info->yres_virtual))
-        return -2;
+    if (
+        (xpos < 0) || (ypos < 0) || (xpos >= var_info->xres) || (ypos >= var_info->yres)
+    ) return -2;
 
     /* TODO: fix integer range */
-    uint32_t pixel_position = (xpos + var_info->xoffset) * (var_info->bits_per_pixel / 8);
-    pixel_position += (ypos + var_info->yoffset) * fix_info->line_length;
+    uint32_t pixel_position = (ypos * var_info->xres * (var_info->bits_per_pixel >> 3)) + (xpos * (var_info->bits_per_pixel >> 3));
 
     /* calculate pixel base address */
-    if (fbscreen->fbunits[ fbscreen->index ].use_tmp)
+    color_addr = fbscreen->drawing_mem + pixel_position;
+
+    if (var_info->bits_per_pixel == 16)
     {
-        color_addr = fbscreen->fbunits[ fbscreen->index ].tmp_fbmem + pixel_position;
+        uint16_t tmp_pixel = \
+            FBSCREEN_COLOR2PIX(var_info->red.offset, var_info->red.length, CANVAS_RGBCOLOR_RED(color)) | \
+            FBSCREEN_COLOR2PIX(var_info->green.offset, var_info->green.length, CANVAS_RGBCOLOR_GREEN(color)) | \
+            FBSCREEN_COLOR2PIX(var_info->blue.offset, var_info->blue.length, CANVAS_RGBCOLOR_BLUE(color));
+        *((uint16_t*)color_addr) = tmp_pixel;
+    }
+    else if (var_info->bits_per_pixel == 24)
+    {
+        uint32_t tmp_pixel = \
+            FBSCREEN_COLOR2PIX(var_info->red.offset, var_info->red.length, CANVAS_RGBCOLOR_RED(color)) | \
+            FBSCREEN_COLOR2PIX(var_info->green.offset, var_info->green.length, CANVAS_RGBCOLOR_GREEN(color)) | \
+            FBSCREEN_COLOR2PIX(var_info->blue.offset, var_info->blue.length, CANVAS_RGBCOLOR_BLUE(color));
+        /* processor must use little endian mode, copy byte by byte */
+        *(((uint8_t*)color_addr) + 0) = *(((uint8_t*)&tmp_pixel) + 0);
+        *(((uint8_t*)color_addr) + 1) = *(((uint8_t*)&tmp_pixel) + 1);
+        *(((uint8_t*)color_addr) + 2) = *(((uint8_t*)&tmp_pixel) + 2);
+    }
+    else if (var_info->bits_per_pixel == 32)
+    {
+        uint32_t tmp_pixel = \
+            FBSCREEN_COLOR2PIX(var_info->red.offset, var_info->red.length, CANVAS_RGBCOLOR_RED(color)) | \
+            FBSCREEN_COLOR2PIX(var_info->green.offset, var_info->green.length, CANVAS_RGBCOLOR_GREEN(color)) | \
+            FBSCREEN_COLOR2PIX(var_info->blue.offset, var_info->blue.length, CANVAS_RGBCOLOR_BLUE(color));
+        *((uint32_t*)color_addr) = tmp_pixel;
     }
     else
     {
-        color_addr = fbscreen->fbunits[ fbscreen->index ].fbmem + pixel_position;
+        return -3;
     }
-
-    /* setup color of pixels */
-    *(color_addr + (var_info->red.offset >> 3)) = CANVAS_RGBCOLOR_RED(color);
-    *(color_addr + (var_info->green.offset >> 3)) = CANVAS_RGBCOLOR_GREEN(color);
-    *(color_addr + (var_info->blue.offset >> 3)) = CANVAS_RGBCOLOR_BLUE(color);
 
     return 0;
 }
@@ -202,36 +204,59 @@ int32_t fbscreen_get_pixel(
 
     /* assert params */
     assert(!(NULL == fbscreen));
-    if ((NULL == fbscreen) || (fbscreen->index > fbscreen->limit))
-        return -1;
+    if (NULL == fbscreen) return -1;
 
     /* get var/fix info */
-    var_info = &fbscreen->fbunits[ fbscreen->index ].var_info;
-    fix_info = &fbscreen->fbunits[ fbscreen->index ].fix_info;
+    var_info = &fbscreen->var_info;
+    fix_info = &fbscreen->fix_info;
 
-    if ((xpos < 0) || (ypos < 0) || (xpos >= var_info->xres_virtual) || (ypos >= var_info->yres_virtual))
-        return -2;
+    if (
+        (xpos < 0) || (ypos < 0) || (xpos >= var_info->xres) || (ypos >= var_info->yres)
+    ) return -2;
 
     /* TODO: fix integer range */
-    uint32_t pixel_position = (xpos + var_info->xoffset) * (var_info->bits_per_pixel / 8);
-    pixel_position += (ypos + var_info->yoffset) * fix_info->line_length;
+    uint32_t pixel_position = (ypos * var_info->xres * (var_info->bits_per_pixel >> 3)) + (xpos * (var_info->bits_per_pixel >> 3));
 
     /* calculate pixel base address */
-    if (fbscreen->fbunits[ fbscreen->index ].use_tmp)
+    color_addr = fbscreen->drawing_mem + pixel_position;
+
+    if (var_info->bits_per_pixel == 16)
     {
-        color_addr = fbscreen->fbunits[ fbscreen->index ].tmp_fbmem + pixel_position;
+        uint16_t tmp_pixel = *((uint16_t*)color_addr);
+        *color = CANVAS_RGBCOLOR(
+            FBSCREEN_PIX2COLOR(var_info->red.offset, var_info->red.length, tmp_pixel),
+            FBSCREEN_PIX2COLOR(var_info->green.offset, var_info->green.length, tmp_pixel),
+            FBSCREEN_PIX2COLOR(var_info->blue.offset, var_info->blue.length, tmp_pixel)
+        );
+    }
+    else if (var_info->bits_per_pixel == 24)
+    {
+        /* not tested */
+        uint32_t tmp_pixel = 0;
+        /* processor must use little endian mode, copy byte by byte */
+        *(((uint8_t*)&tmp_pixel) + 0) = *(((uint8_t*)color_addr) + 0);
+        *(((uint8_t*)&tmp_pixel) + 1) = *(((uint8_t*)color_addr) + 1);
+        *(((uint8_t*)&tmp_pixel) + 2) = *(((uint8_t*)color_addr) + 2);
+        *color = CANVAS_RGBCOLOR(
+            FBSCREEN_PIX2COLOR(var_info->red.offset, var_info->red.length, tmp_pixel),
+            FBSCREEN_PIX2COLOR(var_info->green.offset, var_info->green.length, tmp_pixel),
+            FBSCREEN_PIX2COLOR(var_info->blue.offset, var_info->blue.length, tmp_pixel)
+        );
+    }
+    else if (var_info->bits_per_pixel == 32)
+    {
+        /* not tested */
+        uint32_t tmp_pixel = 0;
+        *color = CANVAS_RGBCOLOR(
+            FBSCREEN_PIX2COLOR(var_info->red.offset, var_info->red.length, tmp_pixel),
+            FBSCREEN_PIX2COLOR(var_info->green.offset, var_info->green.length, tmp_pixel),
+            FBSCREEN_PIX2COLOR(var_info->blue.offset, var_info->blue.length, tmp_pixel)
+        );
     }
     else
     {
-        color_addr = fbscreen->fbunits[ fbscreen->index ].fbmem + pixel_position;
+        return -3;
     }
-
-    /* get color at address */
-    *color = CANVAS_RGBCOLOR(
-        *(color_addr + (var_info->red.offset >> 3)),
-        *(color_addr + (var_info->green.offset >> 3)),
-        *(color_addr + (var_info->blue.offset >> 3))
-    );
 
     return 0;
 }
@@ -242,11 +267,11 @@ int32_t fbscreen_clear_screen(
 )
 {
     /* get var/fix info */
-    const struct fb_var_screeninfo *var_info = &fbscreen->fbunits[ fbscreen->index ].var_info;
+    const struct fb_var_screeninfo *var_info = &fbscreen->var_info;
 
-    for (int32_t i = 0; i < var_info->xres_virtual; i++)
+    for (int32_t i = 0; i < var_info->xres; i++)
     {
-        for (int32_t j = 0; j < var_info->yres_virtual; j++)
+        for (int32_t j = 0; j < var_info->yres; j++)
         {
             fbscreen_set_pixel(fbscreen, i, j, color);
         }
@@ -305,7 +330,7 @@ int32_t fbscreen_draw_circle(
     }
 
     int32_t xlimit;
-    int32_t radius_sqr = circle->radius * circle->radius; 
+    int32_t radius_sqr = circle->radius * circle->radius;
 
     for (int32_t i = 0; i < circle->radius; i++)
     {
@@ -332,20 +357,47 @@ int32_t fbscreen_draw_circle(
 
 int32_t fbscreen_flush_drawing
 (
-    const struct fbscreen *fbscreen
+    struct fbscreen *fbscreen
 )
 {
-    const struct fbscreen_fbunit *fbunit = NULL;
+    int32_t result = 0;
+    int32_t useless = 0;
 
     assert(!(NULL == fbscreen));
-    if (NULL == fbscreen)
-    {
-        return -1;
-    }
+    if (NULL == fbscreen) return -1;
 
-    /* workaround - copy tmp_fbmem to fbmem 
-     * instead swaping active/inactive frambuffers */
-    fbunit = &fbscreen->fbunits[ fbscreen->index ];
-    memcpy(fbunit->fbmem, fbunit->tmp_fbmem, fbunit->size);
+    /* wait for sync */
+    result = ioctl(fbscreen->fb_fd, FBIO_WAITFORVSYNC, &useless);
+    assert(!(result < 0));
+    if (result < 0) return -1;
+
+    /* call ioctl to change/swap starting position on y-axis */
+    fbscreen->var_info.activate = FB_ACTIVATE_VBL;
+    fbscreen->var_info.yoffset = fbscreen->drawing_yoffsets[fbscreen->drawing_idx];
+    result = ioctl(fbscreen->fb_fd, FBIOPAN_DISPLAY, &fbscreen->var_info);
+    assert(!(result < 0));
+    if (result < 0) return -1;
+
+    /* calculate which half of memory is 'drawing' one.
+     * calculate address of 'drawing' memory */
+    uint32_t active_idx = fbscreen->drawing_idx;
+    fbscreen->drawing_idx = (fbscreen->drawing_idx + 1) & 0x1;
+    fbscreen->drawing_mem = fbscreen->drawing_addrs[fbscreen->drawing_idx];
+
+    /* wait for sync */
+    result = ioctl(fbscreen->fb_fd, FBIO_WAITFORVSYNC, &useless);
+    assert(!(result < 0));
+    if (result < 0) return -1;
+
+    /* copy data from 'active' to 'inactive' memory before
+     * drawing API will modify 'inactive' memory.
+     * Comment out this line to speedup a drawing in a cost of
+     * different picture for each half of 'memory' */
+    memcpy(
+        fbscreen->drawing_addrs[fbscreen->drawing_idx], 
+        fbscreen->drawing_addrs[active_idx],
+        fbscreen->drawing_mem_size
+    );
+
     return 0;
 }
