@@ -19,11 +19,9 @@ SRCBRANCH = "jethro"
 LOCALVERSION = "-yocto"
  
 #Always update SRCREV based on your last commit
-#SRCREV = "aba8070ca2dbb941788a5f5eea714e3cf8a44b65"
-SRCREV = "AUTOINC"
-
+SRCREV = "9c8f1161f03bf41801993ebe477ea05e62d3e8e8"
  
-KERNEL_SRC ?= "git://github.com/FEDEVEL/openrex-linux-3.14.git;protocol=git"
+KERNEL_SRC ?= "git://github.com/RogerLee0000/openrex-linux-3.14.git;protocol=git"
 SRC_URI = "${KERNEL_SRC};branch=${SRCBRANCH} file://defconfig"
  
-COMPATIBLE_MACHINE = "(mx6|mx7|imx6q-openrex|imx6s-openrex)"
+COMPATIBLE_MACHINE = "(mx6|mx7|imx6q-openrex)"
